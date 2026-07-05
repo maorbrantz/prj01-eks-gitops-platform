@@ -1,0 +1,42 @@
+# kyverno values for prj01-dev.
+# The chart defaults the admission controller to three replicas with hard anti
+# affinity, which cannot schedule on a two node cluster. Everything is pinned to
+# a single replica and given small requests. Prod would restore the HA defaults.
+
+admissionController:
+  replicas: 1
+  antiAffinity:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+backgroundController:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+cleanupController:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+reportsController:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
