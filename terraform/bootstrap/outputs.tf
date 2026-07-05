@@ -22,3 +22,8 @@ output "ci_apply_role_arn" {
   description = "ARN of the CI role used for terraform apply on main"
   value       = aws_iam_role.ci_apply.arn
 }
+
+output "app_ci_role_arn" {
+  description = "ARN of the app repo CI role used to push images to ECR"
+  value       = aws_iam_role.app_ci.arn
+}
