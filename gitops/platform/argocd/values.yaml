@@ -39,8 +39,10 @@ repoServer:
     requests:
       cpu: 50m
       memory: 128Mi
+    # rendering the kube-prometheus-stack chart (very large CRDs) OOMKilled the
+    # repo server at 256Mi. 512Mi renders it with headroom.
     limits:
-      memory: 256Mi
+      memory: 512Mi
 
 server:
   replicas: 1
