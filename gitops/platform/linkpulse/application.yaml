@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linkpulse-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: apps
+  # multi source: the chart lives in the app repo, the environment values live
+  # here in the platform repo so image tags and infra names are promoted through
+  # gitops without touching the app repo.
+  sources:
+    - repoURL: https://github.com/maorbrantz/prj01-linkpulse-app
+      targetRevision: main
+      path: charts/linkpulse
+      helm:
+        releaseName: linkpulse
+        valueFiles:
+          - $values/gitops/apps/dev/linkpulse/values.yaml
+    - repoURL: https://github.com/maorbrantz/prj01-eks-gitops-platform
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkpulse-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
