@@ -1,0 +1,38 @@
+name: apply
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: apply-dev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    name: terraform apply dev
+    runs-on: ubuntu-latest
+    environment: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::149536464688:role/prj01-ci-apply
+          aws-region: il-central-1
+
+      - name: terraform init
+        working-directory: terraform/envs/dev
+        run: terraform init -input=false -backend-config="profile="
+
+      - name: terraform apply
+        working-directory: terraform/envs/dev
+        run: terraform apply -input=false -auto-approve -var 'profile='
