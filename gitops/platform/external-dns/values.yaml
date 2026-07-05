@@ -1,0 +1,32 @@
+# external-dns values for prj01-dev.
+# Manages records only inside the prj1.maorbrantz.com zone. Credentials come from
+# the EKS Pod Identity association bound to this service account in terraform.
+
+provider:
+  name: aws
+
+serviceAccount:
+  create: true
+  name: external-dns
+
+# Scope the controller to the one hosted zone it owns.
+domainFilters:
+  - prj1.maorbrantz.com
+zoneIdFilters:
+  - Z059069021REM6GKSJ2A3
+
+# sync lets external-dns create and delete records so the zone tracks the
+# cluster state. txtOwnerId stamps ownership so it never touches records it did
+# not create.
+policy: sync
+txtOwnerId: prj01-dev
+
+# il-central-1 has no route53 endpoint of its own; route53 is global, so the
+# controller talks to the global endpoint. No region setting is needed here.
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
