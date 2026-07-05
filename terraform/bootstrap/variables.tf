@@ -27,3 +27,19 @@ variable "github_repo" {
   type        = string
   default     = "prj01-eks-gitops-platform"
 }
+
+variable "app_github_repo" {
+  description = "GitHub repository for the linkpulse app that the ECR push role trusts"
+  type        = string
+  default     = "prj01-linkpulse-app"
+}
+
+variable "linkpulse_ecr_repos" {
+  description = "ECR repository names the app CI role may push to"
+  type        = list(string)
+  default = [
+    "prj01/linkpulse-api",
+    "prj01/linkpulse-worker",
+    "prj01/linkpulse-web",
+  ]
+}
