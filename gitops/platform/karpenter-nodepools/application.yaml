@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter-nodepools
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  # raw manifests, not a chart. the directory source only picks up the node class
+  # and node pool files so it never tries to apply this Application to itself.
+  source:
+    repoURL: https://github.com/maorbrantz/prj01-eks-gitops-platform
+    targetRevision: main
+    path: gitops/platform/karpenter-nodepools
+    directory:
+      recurse: false
+      include: "{ec2nodeclass.yaml,nodepool.yaml}"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

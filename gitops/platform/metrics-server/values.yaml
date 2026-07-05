@@ -1,0 +1,13 @@
+# metrics-server for prj01-dev.
+# The resource metrics api that CPU based HPA reads from. Without it the api HPA
+# has no metrics to scale on. One replica is enough for a single cluster this
+# size.
+
+replicas: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
