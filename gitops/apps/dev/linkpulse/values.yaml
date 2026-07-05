@@ -16,6 +16,11 @@ aws:
 api:
   serviceAccountName: linkpulse-api
   baseUrl: http://linkpulse.prj1.maorbrantz.com
+  # fault injection for the canary rollback demo. this makes the next release a
+  # bad one: its canary pods return 500s on a share of redirects, so the
+  # prometheus analysis fails and argo rollouts aborts back to the stable
+  # version. reverted to 0.0 once the rollback is captured.
+  failRate: "0.6"
 
 worker:
   replicas: 1
