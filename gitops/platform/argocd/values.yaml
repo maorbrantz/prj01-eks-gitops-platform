@@ -23,9 +23,13 @@ controller:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 384Mi
+    # the controller was OOMKilled at 512Mi once the platform addons landed:
+    # cert-manager, kyverno and the alb controller ship large CRDs that push
+    # reconcile memory past that ceiling. 1Gi gives it headroom on the system
+    # group without being wasteful.
     limits:
-      memory: 512Mi
+      memory: 1Gi
 
 repoServer:
   replicas: 1
