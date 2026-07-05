@@ -1,0 +1,85 @@
+# loki values for prj01-dev.
+# single binary mode, filesystem storage on emptyDir. Same storage story as the
+# prometheus stack: no EBS CSI driver on this cluster, so no PVCs. Logs live only
+# for the life of the pod, which is fine for a demo. Retention is short.
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  # a v13 tsdb schema so the single binary starts cleanly on filesystem storage.
+  schemaConfig:
+    configs:
+      - from: "2024-01-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  storage:
+    type: filesystem
+  limits_config:
+    retention_period: 24h
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+  compactor:
+    retention_enabled: true
+    delete_request_store: filesystem
+  # the single binary needs a small ruler/analytics footprint only.
+  analytics:
+    reporting_enabled: false
+
+deploymentMode: SingleBinary
+
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false
+  extraVolumes:
+    - name: storage
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: storage
+      mountPath: /var/loki
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# turn off the scalable-mode components so only the single binary runs.
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# no object storage sidecars or self-monitoring on a demo cluster.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+minio:
+  enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+# the chart still creates a gateway Service that grafana points its datasource at.
+gateway:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
