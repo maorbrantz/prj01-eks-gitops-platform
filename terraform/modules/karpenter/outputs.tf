@@ -17,3 +17,8 @@ output "iam_role_arn" {
   description = "ARN of the Karpenter controller IAM role used by the Pod Identity association"
   value       = module.karpenter.iam_role_arn
 }
+
+output "iam_role_name" {
+  description = "Name of the Karpenter controller IAM role"
+  value       = module.karpenter.iam_role_name
+}
