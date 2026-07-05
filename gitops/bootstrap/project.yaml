@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: cluster platform addons managed by the root app of apps
+  sourceRepos:
+    - https://github.com/maorbrantz/prj01-eks-gitops-platform
+    - https://argoproj.github.io/argo-helm
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  # platform addons install cluster scoped resources (crds, webhooks, rbac)
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
