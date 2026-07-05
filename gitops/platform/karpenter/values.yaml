@@ -1,0 +1,38 @@
+# karpenter controller values for prj01-dev.
+# Controller only. NodePools and the EC2NodeClass come in P8. The controller
+# service account matches the pod identity association created in P3
+# (kube-system/karpenter), so credentials are injected with no IRSA annotation.
+
+serviceAccount:
+  create: true
+  name: karpenter
+
+settings:
+  clusterName: prj01-dev
+  interruptionQueue: Karpenter-prj01-dev
+
+# One replica on the system node group. The chart defaults to two with hard anti
+# affinity, which will not both schedule on a two node cluster.
+replicas: 1
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# Keep the controller off any future karpenter provisioned nodes so it never
+# tries to evict itself. It belongs on the managed system group.
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: karpenter.sh/nodepool
+              operator: DoesNotExist
+            - key: role
+              operator: In
+              values:
+                - system

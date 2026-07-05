@@ -1,0 +1,46 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow latest tag
+    policies.kyverno.io/description: >-
+      Images must pin an explicit tag. The :latest tag (or a missing tag, which
+      resolves to latest) makes deployments non reproducible.
+spec:
+  # background scanning stays on so existing workloads get audited, but the
+  # match block below is what limits enforcement to the app namespaces.
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - default
+                - linkpulse-*
+      validate:
+        failureAction: Enforce
+        message: "an image tag is required, do not deploy untagged images"
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: disallow-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - default
+                - linkpulse-*
+      validate:
+        failureAction: Enforce
+        message: "using a :latest image tag is not allowed, pin a real version"
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

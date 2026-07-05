@@ -1,0 +1,35 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+  annotations:
+    policies.kyverno.io/title: Disallow privileged containers
+    policies.kyverno.io/description: >-
+      Privileged containers share the host kernel namespaces and can escape the
+      container boundary, so they are blocked in the app namespaces.
+spec:
+  background: true
+  rules:
+    - name: disallow-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - default
+                - linkpulse-*
+      validate:
+        failureAction: Enforce
+        message: "privileged containers are not allowed"
+        pattern:
+          spec:
+            =(ephemeralContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"

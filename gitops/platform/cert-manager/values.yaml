@@ -1,0 +1,32 @@
+# cert-manager values for prj01-dev.
+# CRDs are installed by the chart so ArgoCD manages them with the release. No
+# ClusterIssuer is defined yet; that lands in P6 once the GoDaddy delegation of
+# prj1.maorbrantz.com is live and ACME dns01 solving can actually validate.
+
+crds:
+  enabled: true
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+cainjector:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi

@@ -1,0 +1,23 @@
+# aws-load-balancer-controller values for prj01-dev.
+# Credentials come from the EKS Pod Identity association created in terraform
+# (module addon-iam), which binds this service account to the alb controller
+# role, so no IRSA annotation is set here.
+
+clusterName: prj01-dev
+region: il-central-1
+vpcId: vpc-05535ab3b3fcfe843
+
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+
+# Single replica on the small system node group. This is a dev cluster; prod
+# would run two for availability.
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    memory: 192Mi
