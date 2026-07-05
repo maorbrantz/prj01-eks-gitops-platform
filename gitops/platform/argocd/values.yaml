@@ -24,12 +24,12 @@ controller:
     requests:
       cpu: 100m
       memory: 384Mi
-    # the controller was OOMKilled at 512Mi once the platform addons landed:
-    # cert-manager, kyverno and the alb controller ship large CRDs that push
-    # reconcile memory past that ceiling. 1Gi gives it headroom on the system
-    # group without being wasteful.
+    # the controller was OOMKilled at 512Mi and again at 1Gi once the platform
+    # addons landed: cert-manager, kyverno and the alb controller ship large
+    # CRDs, and reconciling all of them at once peaks well past a gigabyte.
+    # 1.5Gi holds on the two node t3.medium system group with room to spare.
     limits:
-      memory: 1Gi
+      memory: 1536Mi
 
 repoServer:
   replicas: 1
