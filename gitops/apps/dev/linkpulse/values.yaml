@@ -1,0 +1,33 @@
+image:
+  repository: 149536464688.dkr.ecr.il-central-1.amazonaws.com/prj01/linkpulse
+  tag: "f43de69"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+
+aws:
+  region: il-central-1
+  linksTable: prj01-links
+  statsTable: prj01-click-stats
+  clickQueueUrl: https://sqs.il-central-1.amazonaws.com/149536464688/prj01-clicks
+  endpointUrl: ""
+
+api:
+  replicas: 2
+  serviceAccountName: linkpulse-api
+  baseUrl: http://linkpulse.prj1.maorbrantz.com
+
+worker:
+  replicas: 1
+  serviceAccountName: linkpulse-worker
+
+web:
+  replicas: 2
+  apiUpstream: http://linkpulse-api:8000
+
+ingress:
+  enabled: true
+  className: alb
+  host: linkpulse.prj1.maorbrantz.com
+  groupName: linkpulse-dev
