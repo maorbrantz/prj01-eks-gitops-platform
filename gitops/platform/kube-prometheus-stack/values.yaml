@@ -111,6 +111,10 @@ kubeEtcd:
 kubeStateMetrics:
   enabled: true
 kube-state-metrics:
+  # expose node labels as kube_node_labels series so dashboards can group nodes
+  # by karpenter capacity type and nodepool (the spot-vs-system proof panel).
+  metricLabelsAllowlist:
+    - nodes=[karpenter.sh/capacity-type,karpenter.sh/nodepool,node.kubernetes.io/instance-type,role]
   resources:
     requests:
       cpu: 25m
