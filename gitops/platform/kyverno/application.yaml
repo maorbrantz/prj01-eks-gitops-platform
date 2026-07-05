@@ -5,6 +5,10 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # server side diff asks the api server to compute the diff, so fields it
+    # defaults (like spec.conversion on every CRD) no longer show as drift.
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: platform
   sources:
@@ -21,15 +25,6 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
-  # kube-apiserver defaults spec.conversion to {strategy: None} on any CRD that
-  # does not set it, but the chart renders conversion as null. That difference
-  # is cosmetic and would keep every kyverno CRD permanently OutOfSync, so it is
-  # ignored here.
-  ignoreDifferences:
-    - group: apiextensions.k8s.io
-      kind: CustomResourceDefinition
-      jsonPointers:
-        - /spec/conversion
   syncPolicy:
     automated:
       prune: true
