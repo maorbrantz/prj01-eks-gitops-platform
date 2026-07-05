@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  # let argocd finish syncing other apps before it deletes itself on an app removal
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  # multi source: pull the chart from the helm repo, take values from this git repo
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: 10.1.2
+      helm:
+        releaseName: argocd
+        valueFiles:
+          - $values/gitops/platform/argocd/values.yaml
+    - repoURL: https://github.com/maorbrantz/prj01-eks-gitops-platform
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # the chart ships large CRDs, apply them server side to avoid the annotation limit
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true

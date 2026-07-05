@@ -1,0 +1,78 @@
+# argo-cd helm values for the prj01-dev cluster.
+# Sized for a small two node t3.medium system group: no HA, small requests,
+# server runs insecure behind a port-forward until ingress lands in a later phase.
+
+global:
+  # keep every argocd pod on the system node group and off future spot workers
+  nodeSelector:
+    kubernetes.io/os: linux
+
+configs:
+  params:
+    # terminate TLS at the ingress later; for now serve plaintext behind port-forward
+    server.insecure: true
+
+  cm:
+    # short reconcile so gitops changes show up quickly during demos
+    timeout.reconciliation: 60s
+
+controller:
+  replicas: 1
+  metrics:
+    enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+repoServer:
+  replicas: 1
+  metrics:
+    enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+server:
+  replicas: 1
+  metrics:
+    enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+applicationSet:
+  replicas: 1
+  metrics:
+    enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+redis:
+  metrics:
+    enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# dex and notifications are not needed yet, drop them to save capacity
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
