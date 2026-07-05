@@ -15,7 +15,7 @@ aws:
 
 api:
   serviceAccountName: linkpulse-api
-  baseUrl: http://linkpulse.prj1.maorbrantz.com
+  baseUrl: https://linkpulse.prj1.maorbrantz.com
   # fault injection stays off in normal operation. it was briefly set above zero
   # to capture the canary auto-rollback, then restored here.
   failRate: "0.0"
@@ -33,3 +33,4 @@ ingress:
   className: alb
   host: linkpulse.prj1.maorbrantz.com
   groupName: linkpulse-dev
+  certificateArn: arn:aws:acm:il-central-1:149536464688:certificate/8378a749-2529-4481-87af-a2fb580f9ddf
