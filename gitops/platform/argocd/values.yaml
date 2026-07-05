@@ -14,7 +14,7 @@ configs:
 
   cm:
     # short reconcile so gitops changes show up quickly during demos
-    timeout.reconciliation: 60s
+    timeout.reconciliation: 90s
 
 controller:
   replicas: 1
