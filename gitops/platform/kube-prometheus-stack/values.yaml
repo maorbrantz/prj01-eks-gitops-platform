@@ -1,0 +1,137 @@
+# kube-prometheus-stack values for prj01-dev.
+# This is an ephemeral demo cluster, so retention is short and every component
+# runs a single replica with emptyDir. The cluster has no EBS CSI driver (only
+# the legacy in-tree gp2 StorageClass, which does not provision on EKS 1.33), so
+# PVCs would hang Pending. emptyDir keeps the stack schedulable at the cost of
+# losing metrics on pod restart, which is fine for a 24h demo. Prod would add the
+# aws-ebs-csi-driver addon and switch these back to gp3 PVCs.
+
+crds:
+  enabled: true
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 1
+    retention: 24h
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+    storage: {}
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      # single catch-all route. the receiver is a no-op webhook placeholder:
+      # email/Slack routing is environment specific and needs real credentials,
+      # which do not belong in git. Wiring a real receiver is a values change.
+      receiver: "null"
+      group_by: ["alertname", "namespace"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 3h
+    receivers:
+      - name: "null"
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 24h
+    retentionSize: ""
+    # pick up ServiceMonitors and PodMonitors from every namespace, not just the
+    # ones carrying the helm release label. this lets app and addon monitors in
+    # other namespaces be scraped without extra label plumbing.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+    storageSpec: {}
+
+grafana:
+  enabled: true
+  replicas: 1
+  # admin password is generated into a secret by the chart. retrieve it with:
+  #   kubectl -n monitoring get secret kube-prometheus-stack-grafana \
+  #     -o jsonpath='{.data.admin-password}' | base64 -d
+  # never commit the password.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  persistence:
+    enabled: false
+  # sidecar discovers dashboards from ConfigMaps labeled grafana_dashboard across
+  # all namespaces, so dashboards ship as code via git.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folderAnnotation: grafana_folder
+      provider:
+        foldersFromFilesStructure: true
+    datasources:
+      enabled: true
+      searchNamespace: ALL
+  # Loki is added as a datasource so logs are queryable next to metrics. The
+  # loki app installs into the same monitoring namespace.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      jsonData:
+        maxLines: 1000
+
+# the cluster runs on managed EKS, so the control plane components below are not
+# reachable to scrape. disabling them avoids permanently failing targets.
+kubeApiServer:
+  enabled: true
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+nodeExporter:
+  enabled: true
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

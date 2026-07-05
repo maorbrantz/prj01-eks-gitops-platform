@@ -1,0 +1,19 @@
+# promtail values for prj01-dev.
+# runs as a DaemonSet, tails container logs on every node and ships them to the
+# loki single binary. promtail is simpler and lighter than alloy for a demo whose
+# only job is to get pod logs into loki so they are queryable in grafana.
+
+config:
+  clients:
+    - url: http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+# scrape promtail's own metrics so log pipeline health is visible in prometheus.
+serviceMonitor:
+  enabled: true

@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-overview
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: LinkPulse
+data:
+  platform-overview.json: |
+    {
+      "title": "Platform Overview",
+      "uid": "platform-overview",
+      "editable": true,
+      "schemaVersion": 39,
+      "time": { "from": "now-1h", "to": "now" },
+      "refresh": "30s",
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "text": "Prometheus", "value": "Prometheus" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Nodes by capacity type (karpenter spot vs on-demand vs system)",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 0 },
+          "description": "Karpenter labels its nodes with karpenter.sh/capacity-type. The system managed group has no such label, so it counts as none.",
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "targets": [
+            {
+              "expr": "count(kube_node_labels) by (label_karpenter_sh_capacity_type)",
+              "legendFormat": "{{label_karpenter_sh_capacity_type}}"
+            }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Total nodes",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 6, "x": 0, "y": 9 },
+          "targets": [
+            { "expr": "count(kube_node_info)", "legendFormat": "nodes" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "Pending pods",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 6, "x": 6, "y": 9 },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "orange", "value": 1 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            { "expr": "sum(kube_pod_status_phase{phase=\"Pending\"})", "legendFormat": "pending" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "ArgoCD apps healthy",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 6, "x": 12, "y": 9 },
+          "targets": [
+            { "expr": "sum(argocd_app_info{health_status=\"Healthy\"})", "legendFormat": "healthy" }
+          ]
+        },
+        {
+          "type": "stat",
+          "title": "ArgoCD apps not synced",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 5, "w": 6, "x": 18, "y": 9 },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            }
+          },
+          "targets": [
+            { "expr": "sum(argocd_app_info{sync_status!=\"Synced\"})", "legendFormat": "out of sync" }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Running pods by namespace",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 9, "w": 24, "x": 0, "y": 14 },
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "targets": [
+            {
+              "expr": "sum(kube_pod_status_phase{phase=\"Running\"}) by (namespace)",
+              "legendFormat": "{{namespace}}"
+            }
+          ]
+        }
+      ]
+    }

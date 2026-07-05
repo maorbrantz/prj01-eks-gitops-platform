@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: argo-rollouts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  # the argo-rollouts chart ships no metrics Service, so scrape the controller
+  # pod directly on its named metrics port (8090).
+  namespaceSelector:
+    matchNames:
+      - argo-rollouts
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argo-rollouts
+  podMetricsEndpoints:
+    - port: metrics
+      interval: 30s
