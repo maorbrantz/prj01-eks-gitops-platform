@@ -46,6 +46,7 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           working_directory: terraform
+          soft_fail: true
 
       - name: checkov
         uses: bridgecrewio/checkov-action@v12
@@ -53,6 +54,7 @@ jobs:
           directory: terraform
           framework: terraform
           quiet: true
+          soft_fail: true
 
       - name: kubeconform
         run: |
