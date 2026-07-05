@@ -59,8 +59,9 @@ jobs:
       - name: kubeconform
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
-          # values.yaml files are helm inputs, not kubernetes manifests, so skip them.
-          find gitops -name '*.yaml' ! -name 'values.yaml' -print0 \
+          # values files are helm inputs, not kubernetes manifests, so skip any
+          # file ending in values.yaml (values.yaml, promtail-values.yaml, etc).
+          find gitops -name '*.yaml' ! -name '*values.yaml' -print0 \
             | xargs -0 ./kubeconform -strict -ignore-missing-schemas -summary
 
   gitleaks:
