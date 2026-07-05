@@ -1,0 +1,46 @@
+linkpulse api canary auto-rollback, bad release
+===============================================
+
+this is the flagship: a release fails its metric analysis and argo rollouts
+rolls it back with no human action, while user traffic never leaves the healthy
+stable version.
+
+the api carries a FAIL_RATE knob (off by default) that returns 500s on a share
+of redirects. FAIL_RATE was set to 0.6 in gitops/apps/dev/linkpulse/values.yaml
+through a normal pull request. argocd synced it, which created a new canary
+replicaset. only the canary pods got the bad env; the stable pods kept serving
+normally:
+
+  canary pod (5bdbf85fcb) FAIL_RATE: 0.6
+  stable pod (84588bc978) FAIL_RATE: 0.0
+
+a steady k6 load ran against the api Service throughout, so prometheus saw real
+traffic on both replicasets. the canary immediately started returning 5xx while
+the stable pods stayed clean:
+
+  canary success ratio (5bdbf85fcb): 0.583   (40 percent of redirects were 500s)
+  stable success ratio (84588bc978): 1.0     (users never saw an error)
+
+the analysis measured the canary only and failed:
+
+  $ kubectl get analysisrun linkpulse-api-5bdbf85fcb-7-1 -n linkpulse-dev
+  overall: Failed
+  metric p95-latency  -> Failed (failed 3 > failureLimit 2) | measurements [0.698, 1.552, 1.557]
+  metric success-rate -> failing                            | measurements [1.0, 0.606, 0.557]
+
+argo rollouts aborted and rolled back to stable on its own:
+
+  $ kubectl get rollout linkpulse-api -n linkpulse-dev
+  phase=Degraded | abort=true
+  message: RolloutAborted: Rollout aborted update to revision 7:
+           Step-based analysis phase error/failed: Metric "p95-latency"
+           assessed Failed due to failed (3) > failureLimit (2)
+
+  replicasets after the abort (canary scaled to zero, stable serving all traffic):
+  linkpulse-api-5bdbf85fcb   0    0    0     (bad canary, torn down)
+  linkpulse-api-84588bc978   10   10   10    (stable, restored)
+
+FAIL_RATE was then restored to 0.0 through a follow up pull request. because the
+reverted pod template matches the stable replicaset, the rollout cleared its
+abort and returned to Healthy on the good version, and the linkpulse-dev argocd
+app went back to Synced and Healthy.
