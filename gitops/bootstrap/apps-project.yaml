@@ -11,8 +11,11 @@ spec:
   destinations:
     - server: https://kubernetes.default.svc
       namespace: linkpulse-dev
-  # the chart only ships namespaced resources (deployments, services, service
-  # accounts, ingress), so no cluster scoped whitelist is needed.
+  # the only cluster scoped object the app creates is its own namespace, via the
+  # CreateNamespace sync option. everything else is namespaced.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
