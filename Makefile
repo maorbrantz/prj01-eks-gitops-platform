@@ -4,7 +4,11 @@ help:
 	@echo "targets: bootstrap up down plan apply demo"
 
 bootstrap:
-	@echo "bootstrap: not implemented yet"
+	cd terraform/bootstrap && \
+		AWS_PROFILE=prj01 terraform fmt -check && \
+		AWS_PROFILE=prj01 terraform init && \
+		AWS_PROFILE=prj01 terraform validate && \
+		AWS_PROFILE=prj01 terraform plan
 
 up:
 	@echo "up: not implemented yet"
