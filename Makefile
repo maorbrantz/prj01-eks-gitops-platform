@@ -1,13 +1,15 @@
-.PHONY: help bootstrap plan up apply down demo
+.PHONY: help bootstrap plan up apply down demo argocd
 
 AWS_PROFILE ?= prj01
 DEV_DIR := terraform/envs/dev
+HELM_BIN ?= helm
 
 help:
-	@echo "targets: bootstrap plan up apply down demo"
+	@echo "targets: bootstrap plan up apply down argocd demo"
 	@echo "  plan          terraform plan for the dev env"
 	@echo "  up / apply    terraform apply for the dev env (needs FORCE=1)"
 	@echo "  down          terraform destroy for the dev env (needs FORCE=1)"
+	@echo "  argocd        install argocd and apply the root app (needs a live cluster)"
 
 bootstrap:
 	cd terraform/bootstrap && \
@@ -37,6 +39,9 @@ down:
 ifeq ($(FORCE),1)
 	cd $(DEV_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform destroy
 endif
+
+argocd:
+	HELM_BIN=$(HELM_BIN) scripts/bootstrap-cluster.sh
 
 demo:
 	@echo "demo: not implemented yet"
