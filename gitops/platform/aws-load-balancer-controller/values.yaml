@@ -11,6 +11,14 @@ serviceAccount:
   create: true
   name: aws-load-balancer-controller
 
+# The service mutator webhook makes this controller the default for every new
+# type: LoadBalancer service, with a Fail policy. That means any service create
+# anywhere in the cluster breaks whenever the controller has no ready endpoint,
+# which stalled other addons on first rollout. This cluster provisions ALBs
+# through ingress, so the mutator is not needed. Turning it off removes the
+# cluster wide dependency.
+enableServiceMutatorWebhook: false
+
 # Single replica on the small system node group. This is a dev cluster; prod
 # would run two for availability.
 replicaCount: 1
