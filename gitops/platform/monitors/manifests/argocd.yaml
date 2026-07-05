@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  namespaceSelector:
+    matchNames:
+      - argocd
+  selector:
+    matchExpressions:
+      # every argocd metrics service carries a *-metrics name and an http-metrics
+      # port. matching part-of=argocd picks up controller, server, repo-server and
+      # applicationset in one monitor.
+      - key: app.kubernetes.io/part-of
+        operator: In
+        values:
+          - argocd
+  endpoints:
+    - port: http-metrics
+      interval: 30s

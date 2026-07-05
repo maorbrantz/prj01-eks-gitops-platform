@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: aws-load-balancer-controller
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  # the controller exposes metrics on the pod's metrics-server port (8080) with
+  # no dedicated Service, so scrape the pod directly.
+  namespaceSelector:
+    matchNames:
+      - kube-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aws-load-balancer-controller
+  podMetricsEndpoints:
+    - port: metrics-server
+      interval: 30s

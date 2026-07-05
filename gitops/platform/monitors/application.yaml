@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitors
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  # plain ServiceMonitor/PodMonitor manifests for the platform addons that
+  # already expose metrics but ship no monitor of their own. they live in a
+  # manifests subfolder so the app of apps include filter does not treat them as
+  # Applications. prometheus picks them up because its selectors match all
+  # namespaces (see the kube-prometheus-stack values).
+  source:
+    repoURL: https://github.com/maorbrantz/prj01-eks-gitops-platform
+    targetRevision: main
+    path: gitops/platform/monitors/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
