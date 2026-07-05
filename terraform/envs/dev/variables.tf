@@ -38,3 +38,9 @@ variable "admin_access_role_arns" {
   description = "IAM role ARNs granted cluster admin via EKS access entries"
   type        = list(string)
 }
+
+variable "route53_zone_id" {
+  description = "Hosted zone id external-dns manages records in"
+  type        = string
+  default     = "Z059069021REM6GKSJ2A3"
+}

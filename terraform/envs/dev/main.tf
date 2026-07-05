@@ -23,3 +23,10 @@ module "karpenter" {
 
   cluster_name = module.eks.cluster_name
 }
+
+module "addon_iam" {
+  source = "../../modules/addon-iam"
+
+  cluster_name    = module.eks.cluster_name
+  route53_zone_id = var.route53_zone_id
+}
