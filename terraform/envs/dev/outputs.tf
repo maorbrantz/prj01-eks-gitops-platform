@@ -44,6 +44,21 @@ output "karpenter_queue_name" {
   value       = module.karpenter.queue_name
 }
 
+output "alb_controller_role_arn" {
+  description = "IAM role ARN for the aws-load-balancer-controller pod identity"
+  value       = module.addon_iam.alb_controller_role_arn
+}
+
+output "external_dns_role_arn" {
+  description = "IAM role ARN for the external-dns pod identity"
+  value       = module.addon_iam.external_dns_role_arn
+}
+
+output "external_secrets_role_arn" {
+  description = "IAM role ARN for the external-secrets pod identity"
+  value       = module.addon_iam.external_secrets_role_arn
+}
+
 output "update_kubeconfig_command" {
   description = "Ready to run command that writes a kubeconfig entry for this cluster"
   value       = "aws eks update-kubeconfig --name ${module.eks.cluster_name} --region ${var.region} --profile ${var.profile}"
