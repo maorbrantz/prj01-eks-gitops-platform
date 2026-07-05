@@ -44,3 +44,15 @@ variable "route53_zone_id" {
   type        = string
   default     = "Z059069021REM6GKSJ2A3"
 }
+
+variable "app_namespace" {
+  description = "Kubernetes namespace the LinkPulse workloads run in"
+  type        = string
+  default     = "linkpulse-dev"
+}
+
+variable "app_domain_name" {
+  description = "Public hostname the LinkPulse app is served on"
+  type        = string
+  default     = "linkpulse.prj1.maorbrantz.com"
+}
