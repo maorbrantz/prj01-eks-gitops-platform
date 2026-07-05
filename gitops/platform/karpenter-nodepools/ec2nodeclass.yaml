@@ -1,0 +1,25 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2023
+  amiSelectorTerms:
+    - alias: al2023@latest
+  role: Karpenter-prj01-dev-20260705140812511400000005
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: prj01-dev
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: prj01-dev
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 40Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  tags:
+    Project: prj01
+    karpenter.sh/discovery: prj01-dev
