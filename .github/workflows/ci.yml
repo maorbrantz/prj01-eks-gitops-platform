@@ -1,0 +1,141 @@
+name: ci
+
+on:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: terraform and manifest checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive terraform
+
+      - name: terraform validate
+        run: |
+          for dir in terraform/bootstrap terraform/envs/dev; do
+            echo "validating $dir"
+            terraform -chdir="$dir" init -backend=false -input=false >/dev/null
+            terraform -chdir="$dir" validate
+          done
+
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.54.0
+
+      - name: run tflint
+        run: |
+          tflint --init
+          tflint --chdir=terraform/envs/dev --recursive
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+
+      - name: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          framework: terraform
+          quiet: true
+
+      - name: kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          find gitops -name '*.yaml' -print0 | xargs -0 ./kubeconform -strict -ignore-missing-schemas -summary
+
+  gitleaks:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  plan:
+    name: terraform plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::149536464688:role/prj01-ci-plan
+          aws-region: il-central-1
+
+      - name: terraform init
+        working-directory: terraform/envs/dev
+        run: terraform init -input=false -backend-config="profile="
+
+      - name: terraform plan
+        id: plan
+        working-directory: terraform/envs/dev
+        run: |
+          set +e
+          terraform plan -input=false -no-color -var 'profile=' > plan.txt 2>&1
+          code=$?
+          set -e
+          {
+            echo "summary<<EOF"
+            grep -E '^(No changes|Plan:|Error:)' plan.txt | head -20 || true
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          tail -c 60000 plan.txt > plan.trimmed
+          exit $code
+
+      - name: comment plan on pr
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = `${{ steps.plan.outputs.summary }}` || 'plan produced no summary line';
+            let details = '';
+            try { details = fs.readFileSync('terraform/envs/dev/plan.trimmed', 'utf8'); } catch (e) {}
+            const body = [
+              '### terraform plan (envs/dev)',
+              '',
+              '```',
+              summary,
+              '```',
+              '<details><summary>full plan</summary>',
+              '',
+              '```',
+              details,
+              '```',
+              '</details>',
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
