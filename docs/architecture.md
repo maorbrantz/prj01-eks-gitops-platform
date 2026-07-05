@@ -19,11 +19,13 @@ subnets exist only to host the internet-facing ALB. A single NAT gateway carries
 outbound traffic for all three AZs, which is a deliberate cost trade documented in
 ADR 002 (per-AZ NAT is the production answer, and it triples the NAT bill).
 
-Two kinds of nodes run here. A small managed node group of two `t3.medium`
-instances carries the system workloads (ArgoCD, the controllers, Prometheus). The
-application workloads land on nodes that Karpenter provisions on demand, spot when
-it can get it. The managed group is the stable floor, Karpenter is the elastic
-layer on top.
+Two kinds of nodes run here. A small managed node group of four `t3.medium`
+instances carries the system workloads (ArgoCD, the controllers, Prometheus, Loki).
+The application workloads land on nodes that Karpenter provisions on demand, spot
+when it can get it. The managed group is the stable floor, Karpenter is the elastic
+layer on top. The group started at two nodes and moved to four once the monitoring
+stack landed, because Prometheus, Grafana, and Loki need real headroom alongside
+ArgoCD and the controllers.
 
 ```mermaid
 flowchart TB
@@ -35,7 +37,7 @@ flowchart TB
         end
         subgraph Private["private subnets"]
             subgraph EKS["EKS prj01-dev (1.33)"]
-                SYS["system node group<br/>2x t3.medium"]
+                SYS["system node group<br/>4x t3.medium"]
                 KARP["karpenter nodes<br/>spot first"]
                 SYS --- Argo[ArgoCD]
                 SYS --- Prom[Prometheus / Grafana / Loki]
@@ -120,12 +122,15 @@ flowchart LR
     F -. bad canary .-> H[analysis aborts, stable keeps serving]
 ```
 
-The api runs as an Argo Rollout with a replica-ratio canary (20 percent, pause,
-50 percent, pause, then full). Progression is currently pause-based, and the
-Prometheus-driven analysis that turns a bad canary into an automatic rollback is
-landing with the monitoring layer described below. Even now, an aborted rollout
-leaves the stable ReplicaSet serving, so a failed rollout never takes the app
-down.
+The api runs as an Argo Rollout with a replica-ratio canary: 20 percent, analysis,
+50 percent, analysis, then full. Between the weight steps the rollout runs two
+Prometheus AnalysisTemplates against the canary pods only (success rate at or above
+99 percent, p95 under 500ms) and advances only if both pass. A bad canary fails its
+analysis and the rollout aborts. Because the stable ReplicaSet is never scaled to
+zero during the canary steps, an aborted rollout returns all traffic to stable with
+no gap, so a failed rollout never takes the app down. The captured pass and the
+captured auto-rollback are in `docs/proof/canary-analysis-pass.txt` and
+`docs/proof/canary-auto-rollback.txt`.
 
 ## Security model
 
@@ -187,10 +192,20 @@ finding. The captured scale-out and scale-in cycle lives in
 
 ## The monitoring layer
 
-The observability stack is the piece landing now: kube-prometheus-stack for
-metrics and Grafana, Loki for logs, dashboards committed as code, PrometheusRule
-alerts, and the canary AnalysisTemplates (success rate at or above 99 percent, p95
-under 500ms) that will drive automated abort and rollback. The Application
-manifests and dashboards are already in `gitops/platform`, so this closes the loop
-that makes the canary analysis fully automatic. Until it is in place, the canary
-runs on pauses and the rest of the platform is complete.
+The observability stack is kube-prometheus-stack for metrics and Grafana, Loki with
+promtail for logs, dashboards committed as code, and PrometheusRule alerts. It runs
+on `emptyDir` with 24h retention, which is enough for the demo window and loses
+history on a pod restart; persistent storage through the EBS CSI driver is a
+documented backlog item.
+
+Two dashboards ship as ConfigMaps that the Grafana sidecar imports: LinkPulse Golden
+Signals (RPS, p95, error rate) and Platform Overview. The three datasources
+(Prometheus, Loki, Alertmanager) are wired, and querying the panels returns live
+values, captured in `docs/proof/grafana-dashboards.txt`. The PrometheusRule alerts
+cover api error rate and latency, a stalled worker, crash-looping pods, and nodes
+going not-ready; one fired and cleared during failure-injection testing.
+
+This stack is what makes the canary analysis automatic. The api Rollout's
+AnalysisTemplates query this Prometheus for the canary's success rate and p95
+latency between the weight steps, so a bad release aborts on its own. That loop is
+proven in the two canary transcripts under `docs/proof/`.

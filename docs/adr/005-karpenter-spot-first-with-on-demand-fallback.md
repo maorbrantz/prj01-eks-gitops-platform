@@ -4,7 +4,7 @@ Status: accepted
 
 ## Context
 
-Application pods that do not fit on the two system nodes need somewhere to run, and
+Application pods that do not fit on the system node group need somewhere to run, and
 that somewhere should be cheap and should disappear when the load does. Karpenter
 provisions nodes directly for pending pods and consolidates them away when they go
 idle, which fits the ephemeral pattern better than a fixed autoscaling group. The
@@ -26,7 +26,7 @@ idle, and the NodePool is capped at 32 vCPU.
 Most of the time application pods run on cheap spot nodes, and when spot is
 unavailable the app still runs, just at on-demand price for a while. Consolidation
 keeps the node count honest: when load drops, the extra node is removed and the
-cluster returns to the two system nodes.
+cluster returns to just the system node group.
 
 One finding is worth recording because it cost real debugging time. Spot did not
 work at first. Every spot fleet request failed with
