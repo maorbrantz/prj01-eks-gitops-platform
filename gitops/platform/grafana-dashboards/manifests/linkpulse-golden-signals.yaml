@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linkpulse-golden-signals
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+  annotations:
+    grafana_folder: LinkPulse
+data:
+  linkpulse-golden-signals.json: |
+    {
+      "title": "LinkPulse Golden Signals",
+      "uid": "linkpulse-golden",
+      "editable": true,
+      "schemaVersion": 39,
+      "time": { "from": "now-30m", "to": "now" },
+      "refresh": "15s",
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "current": { "text": "Prometheus", "value": "Prometheus" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "API requests per second",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "reqps" } },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"linkpulse-dev\"}[1m]))",
+              "legendFormat": "rps"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "API latency p95 / p99 (s)",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "fieldConfig": { "defaults": { "unit": "s" } },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"linkpulse-dev\"}[5m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"linkpulse-dev\"}[5m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "API error rate (5xx share)",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "percentunit", "max": 1 } },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"linkpulse-dev\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_requests_total{namespace=\"linkpulse-dev\"}[1m])), 0.001)",
+              "legendFormat": "5xx ratio"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "API pods running vs HPA target",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "fieldConfig": { "defaults": { "unit": "short" } },
+          "targets": [
+            {
+              "expr": "count(up{namespace=\"linkpulse-dev\",job=~\".*linkpulse.*api.*\"} == 1)",
+              "legendFormat": "api pods up"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"linkpulse-dev\"}",
+              "legendFormat": "hpa current"
+            },
+            {
+              "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"linkpulse-dev\"}",
+              "legendFormat": "hpa max"
+            }
+          ]
+        },
+        {
+          "type": "timeseries",
+          "title": "Worker processing rate (msg/s)",
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+          "fieldConfig": { "defaults": { "unit": "ops" } },
+          "targets": [
+            {
+              "expr": "sum(rate(worker_messages_processed_total{namespace=\"linkpulse-dev\"}[1m]))",
+              "legendFormat": "processed"
+            },
+            {
+              "expr": "sum(rate(worker_messages_failed_total{namespace=\"linkpulse-dev\"}[1m]))",
+              "legendFormat": "failed"
+            }
+          ]
+        }
+      ]
+    }
