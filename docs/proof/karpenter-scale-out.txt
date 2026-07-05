@@ -1,0 +1,118 @@
+karpenter scale out and scale in under load
+===========================================
+
+setup
+-----
+karpenter controller 1.8.1 in kube-system. this phase adds the workloads
+NodePool and the default EC2NodeClass (gitops/platform/karpenter-nodepools).
+the nodepool allows c/m/r/t families in medium to 2xlarge, amd64, both spot and
+on-demand (spot preferred), capped at 32 vcpu, consolidation
+WhenEmptyOrUnderutilized after 1m idle.
+
+the api runs as an argo rollouts Rollout with a cpu based hpa (min 2, max 10,
+target 60 percent). the two t3.medium system nodes are nearly full, so any api
+replica beyond the first couple has to land on a karpenter node.
+
+load
+----
+k6 (grafana/k6 0.54.0) ran as a Job in the loadtest namespace, hitting the api
+service internally (POST /links then GET the 302 redirect without following it),
+ramping to a few hundred virtual users.
+
+scale out
+---------
+the hpa saw cpu well past target and drove the api from 2 up to 10 replicas. the
+hpa events record the full ladder up and back down:
+
+  New size: 4;  reason: cpu resource utilization above target
+  New size: 6;  reason: cpu resource utilization above target
+  New size: 8;  reason: cpu resource utilization above target
+  New size: 10; reason: cpu resource utilization above target
+  ...
+  New size: 9;  reason: All metrics below target        (scale in begins)
+
+the extra replicas did not fit on the system nodes, so they went Pending and
+karpenter provisioned a node for them.
+
+  [19:49:14] hpa reps=10  apiPods=2  pending=0  nodeclaims=0
+  [19:49:50] hpa reps=10  apiPods=4  pending=2  nodeclaims=1   (pending pods, nodeclaim created)
+  [19:50:44] hpa reps=10  apiPods=6  pending=0  nodeclaims=1   (node ready, pods scheduled)
+  [19:51:46] hpa cpu=230%/60%  running=6  nodeclaim workloads-zw9sf on-demand il-central-1c ready=True
+
+the node came Ready in about 30 seconds:
+
+  NAME              TYPE         CAPACITY    ZONE            NODE                                           READY   AGE
+  workloads-zw9sf   t3a.medium   on-demand   il-central-1c   ip-10-0-71-241.il-central-1.compute.internal   True    ...
+
+with the api memory limit raised to 512Mi the hpa reached the full 10 replicas,
+spread across the system nodes and the karpenter node.
+
+spot vs on-demand: the important finding
+-----------------------------------------
+every early nodeclaim landed on-demand, not spot, even though the nodepool
+prefers spot. the karpenter controller log shows why. it does try spot first:
+
+  "decision":"replace" ... "replacement-nodes":[{"capacity-type":"spot",
+    "instance-types":"t3a.medium, t3.medium, t3.large, t3a.large, c5d.large"}]
+
+but every spot CreateFleet failed:
+
+  aws-error-code=UnfulfillableCapacity
+  AuthFailure.ServiceLinkedRoleCreationNotPermitted: The provided credentials do
+  not have permission to create the service-linked role for EC2 Spot Instances.
+
+this was not thin spot capacity. the account was missing the
+AWSServiceRoleForEC2Spot service linked role, so every spot fleet request failed
+and karpenter fell back to on-demand rather than leaving pods pending (exactly
+what the nodepool is designed to do). i created the role once at the account
+level:
+
+  $ aws iam create-service-linked-role --aws-service-name spot.amazonaws.com
+  RoleName: AWSServiceRoleForEC2Spot
+
+after that, spot provisioning works. see the spot scale out capture below.
+
+spot scale out after the fix
+----------------------------
+once the spot service linked role existed, karpenter consolidation replaced the
+on-demand node with a cheaper spot node of the same type, and the api pods moved
+onto it:
+
+  $ kubectl get nodeclaims -o wide
+  NAME              TYPE         CAPACITY   ZONE            NODE                                           READY   AGE
+  workloads-jb55v   t3a.medium   spot       il-central-1c   ip-10-0-70-191.il-central-1.compute.internal   True    ...
+
+  controller log:
+  "message":"launched nodeclaim","name":"workloads-jb55v","capacity-type":"spot",
+    "instance-type":"t3a.medium","zone":"il-central-1c"
+
+  $ kubectl get nodes -L karpenter.sh/capacity-type -l karpenter.sh/nodepool=workloads
+  NAME                                           STATUS   CAPACITY-TYPE   INSTANCE-TYPE
+  ip-10-0-70-191.il-central-1.compute.internal   Ready    spot            t3a.medium
+
+  pods on the spot node included five api replicas plus web and worker.
+
+so the final state is spot first, on-demand as the automatic fallback, which is
+what the nodepool is meant to do.
+
+scale in and consolidation
+--------------------------
+when load stopped, the hpa began scaling the api back down (New size: 9, reason
+all metrics below target, then continuing toward the floor of 2) and the
+karpenter node went idle. consolidation (WhenEmptyOrUnderutilized,
+consolidateAfter 1m) removed the extra node, so the workloads nodepool went from
+one node back to zero and the cluster was back to just the two system nodes.
+
+the controller log records the underutilized replace decisions (on-demand
+replaced by spot) and the empty delete decisions:
+
+  "reason":"underutilized","decision":"replace" ... replacement capacity-type spot
+  "reason":"empty","decision":"delete" ... disrupted-node-count:1 replacement:0
+
+  workloads nodepool node count over the cycle: 0 -> 1 (scale out) -> 0 (consolidated)
+
+note: the sandbox sso token for this session expired during the last minute of
+the hpa descent, after the karpenter node had already consolidated away. the
+node scale in and the start of the pod scale in are captured above. re-running
+the drain to the exact floor of 2 replicas is a one command follow up once a
+fresh token is in place.

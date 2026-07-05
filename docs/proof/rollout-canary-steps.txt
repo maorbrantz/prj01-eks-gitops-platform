@@ -1,0 +1,46 @@
+linkpulse api canary rollout
+============================
+
+the api workload runs as an argo rollouts Rollout (chart argo-rollouts 2.41.0,
+controller v1.9.0). the canary strategy is replica ratio based with no traffic
+routing: the ingress reaches the api through the web nginx and the api Service,
+so a weight is expressed as a share of the api pods.
+
+strategy steps:
+  setWeight 20  ->  pause 60s  ->  setWeight 50  ->  pause 60s  ->  full
+
+the progression below was captured while the gitops loop delivered a new image
+tag (bot pr bumping the tag in gitops/apps/dev/linkpulse/values.yaml, merged,
+argocd synced). the old stable replicaset is 66957677bd, the new canary
+replicaset is 559cfd6d95. the hpa floor was 2 replicas during this run, so 20
+percent rounds to one canary pod against two stable, and 50 percent is one
+canary against one stable.
+
+  [19:44:13] step=0 phase=Progressing | rs: canary=1/0  stable=2/2   (setWeight 20, canary pod starting)
+  [19:45:04] step=0 phase=Progressing | rs: canary=1/0  stable=2/2
+  [19:45:20] step=1 phase=Paused      | rs: canary=1/1  stable=2/2   (canary pod ready, pause 60s at 20 percent)
+  [19:45:54] step=1 phase=Paused      | rs: canary=1/1  stable=2/2
+  [19:46:22] step=3 phase=Paused      | rs: canary=1/1  stable=1/1   (setWeight 50, pause 60s at 50 percent)
+  [19:46:53] step=3 phase=Paused      | rs: canary=1/1  stable=1/1
+  [19:47:09] step=4 phase=Progressing | rs: canary=2/1  stable=1/1   (promotion, scaling canary up)
+  [19:47:25] step=4 phase=Healthy     | rs: canary=2/2  stable=0/0   (full, old replicaset scaled to zero)
+  [19:48:12] step=4 phase=Healthy     | rs: canary=2/2  stable=0/0
+
+final state:
+
+  $ kubectl get rollout linkpulse-api -n linkpulse-dev \
+      -o jsonpath='{.status.phase} stableRS={.status.stableRS} currentPodHash={.status.currentPodHash}'
+  Healthy  stableRS=559cfd6d95  currentPodHash=559cfd6d95
+
+  $ kubectl get pods -n linkpulse-dev -l app.kubernetes.io/component=api \
+      -o jsonpath='{range .items[*]}{.metadata.name} -> {.spec.containers[0].image}{"\n"}{end}'
+  linkpulse-api-559cfd6d95-whgm7 -> .../prj01/linkpulse-api:1fbaacb
+  linkpulse-api-559cfd6d95-z7pzl -> .../prj01/linkpulse-api:1fbaacb
+
+  $ kubectl get application linkpulse-dev -n argocd
+  NAME            SYNC STATUS   HEALTH STATUS
+  linkpulse-dev   Synced        Healthy
+
+this run used pause based steps only. prometheus driven AnalysisTemplates and the
+failed canary auto rollback demo land with the observability stack in the next
+phase.
