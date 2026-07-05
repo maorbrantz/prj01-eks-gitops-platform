@@ -1,6 +1,6 @@
 image:
   repository: 149536464688.dkr.ecr.il-central-1.amazonaws.com/prj01/linkpulse
-  tag: "45ffa56"
+  tag: "1fbaacb"
   pullPolicy: IfNotPresent
 
 serviceAccount:
