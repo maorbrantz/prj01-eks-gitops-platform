@@ -1,26 +1,42 @@
-.PHONY: help bootstrap up down plan apply demo
+.PHONY: help bootstrap plan up apply down demo
+
+AWS_PROFILE ?= prj01
+DEV_DIR := terraform/envs/dev
 
 help:
-	@echo "targets: bootstrap up down plan apply demo"
+	@echo "targets: bootstrap plan up apply down demo"
+	@echo "  plan          terraform plan for the dev env"
+	@echo "  up / apply    terraform apply for the dev env (needs FORCE=1)"
+	@echo "  down          terraform destroy for the dev env (needs FORCE=1)"
 
 bootstrap:
 	cd terraform/bootstrap && \
-		AWS_PROFILE=prj01 terraform fmt -check && \
-		AWS_PROFILE=prj01 terraform init && \
-		AWS_PROFILE=prj01 terraform validate && \
-		AWS_PROFILE=prj01 terraform plan
-
-up:
-	@echo "up: not implemented yet"
-
-down:
-	@echo "down: not implemented yet"
+		AWS_PROFILE=$(AWS_PROFILE) terraform fmt -check && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform init && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform validate && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform plan
 
 plan:
-	@echo "plan: not implemented yet"
+	cd $(DEV_DIR) && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform init && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform validate && \
+		AWS_PROFILE=$(AWS_PROFILE) terraform plan
+
+up: apply
 
 apply:
-	@echo "apply: not implemented yet"
+	@echo "apply provisions real AWS resources and requires explicit human approval."
+	@echo "re-run with FORCE=1 once you have reviewed the plan: make apply FORCE=1"
+ifeq ($(FORCE),1)
+	cd $(DEV_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform apply
+endif
+
+down:
+	@echo "down destroys the dev cluster and its network. this is not reversible."
+	@echo "re-run with FORCE=1 to proceed: make down FORCE=1"
+ifeq ($(FORCE),1)
+	cd $(DEV_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform destroy
+endif
 
 demo:
 	@echo "demo: not implemented yet"
