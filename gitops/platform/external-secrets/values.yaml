@@ -1,0 +1,54 @@
+# external-secrets operator values for prj01-dev.
+# Operator only. The AWS Secrets Manager ClusterSecretStore is defined in the
+# clusterstore.yaml manifest in this folder and reads credentials through the
+# EKS Pod Identity association bound to this service account in terraform.
+
+installCRDs: true
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: external-secrets
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi
+
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+certController:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
+
+# Ship the ClusterSecretStore with the operator. A sync wave runs it after the
+# CRDs and controller are up so the CR does not apply before its kind exists.
+extraObjects:
+  - apiVersion: external-secrets.io/v1
+    kind: ClusterSecretStore
+    metadata:
+      name: aws-secrets-manager
+      annotations:
+        argocd.argoproj.io/sync-wave: "5"
+    spec:
+      provider:
+        aws:
+          service: SecretsManager
+          region: il-central-1
+          # no auth block: the pod identity association injects credentials for
+          # the controller service account, so the default aws credential chain
+          # resolves the role automatically
