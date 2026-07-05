@@ -16,6 +16,18 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
+  # kyverno mutates each policy on admission, filling in defaults the manifests
+  # do not set (admission, background, emitWarning, and a spec level
+  # validationFailureAction copied up from the rules for backward compatibility).
+  # Ignoring those fields keeps the policies from showing permanently OutOfSync.
+  ignoreDifferences:
+    - group: kyverno.io
+      kind: ClusterPolicy
+      jsonPointers:
+        - /spec/admission
+        - /spec/background
+        - /spec/emitWarning
+        - /spec/validationFailureAction
   syncPolicy:
     automated:
       prune: true
