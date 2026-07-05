@@ -10,22 +10,24 @@ regions, and they are approximate.
 | Item | Roughly per hour |
 |---|---|
 | EKS control plane | $0.10 |
-| System node group, 2x t3.medium | ~$0.10 |
+| System node group, 4x t3.medium | ~$0.19 |
 | NAT gateway (single) | ~$0.05 |
 | ALB | ~$0.03 |
 | Karpenter spot bursts under load | ~$0.01 to $0.04 |
 | DynamoDB, SQS, ECR, CloudWatch logs | pennies |
 
-Call it about $0.30 to $0.35 per hour with a light load, a bit more while a load
-test has Karpenter nodes up. A full working or demo session of a couple of hours is
-a few dollars.
+Call it about $0.40 to $0.45 per hour with a light load, a bit more while a load
+test has Karpenter nodes up. The system node group started at two nodes and moved to
+four once the monitoring stack needed the headroom, which is most of the difference
+from the earlier estimate. A full working or demo session of a couple of hours is
+still a few dollars.
 
 ## If it were left running
 
-Left up around the clock, the fixed pieces dominate. The control plane, the two
+Left up around the clock, the fixed pieces dominate. The control plane, the four
 system nodes, the NAT gateway, and the ALB run whether or not anyone is using the
-app, so they set the floor. At roughly $0.28 per hour for those four alone, a month
-of never tearing it down is on the order of $200, before any load-driven spot
+app, so they set the floor. At roughly $0.37 per hour for those together, a month
+of never tearing it down is on the order of $270, before any load-driven spot
 nodes. That is the number the ephemeral pattern exists to avoid.
 
 ## The ephemeral strategy

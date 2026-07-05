@@ -69,41 +69,44 @@ sequenceDiagram
 ## The canary progression
 
 The Rollout strategy is replica-ratio based (ADR 007 explains why there is no
-traffic router): setWeight 20, pause, setWeight 50, pause, then full promotion. At
-the HPA floor of two api replicas, 20 percent is one canary pod against two stable,
-and 50 percent is one against one. A captured run lives in
-`docs/proof/rollout-canary-steps.txt`, and it looks like this:
+traffic router): setWeight 20, analysis, setWeight 50, analysis, then full
+promotion. At the HPA floor of two api replicas, 20 percent is one canary pod
+against two stable, and 50 percent is one against one. The bare weight progression
+(without analysis) is captured in `docs/proof/rollout-canary-steps.txt`, and it
+looks like this:
 
 - The new ReplicaSet starts one canary pod while both stable pods keep serving.
-- Once the canary pod is ready, the rollout pauses at 20 percent for the step
-  window.
-- It moves to 50 percent, scaling stable down so the ratio holds, and pauses again.
+- Once the canary pod is ready, the rollout holds at 20 percent for the step window.
+- It moves to 50 percent, scaling stable down so the ratio holds, and holds again.
 - On the last step it promotes fully, scales the canary up to the target count, and
   scales the old ReplicaSet to zero.
 
-When the observability layer lands, each pause becomes an analysis step instead:
-Argo Rollouts queries Prometheus for the canary's success rate (target at or above
-99 percent) and p95 latency (under 500ms) and only advances if both pass. Until
-then the steps run on pauses, and the operator watches the rollout by eye.
+Between each weight step, Argo Rollouts runs two Prometheus AnalysisTemplates
+against the canary pods only: success rate (target at or above 99 percent) and p95
+latency (under 500ms), each sampled a few times with a small failure budget. The
+step advances only if both pass. A healthy release passing its analysis and
+completing on its own is captured in `docs/proof/canary-analysis-pass.txt`.
 
 ## What happens on a failed canary
 
-The whole point of the canary is that a bad version never fully rolls out. With the
-analysis in place, a canary whose success rate drops or whose latency climbs past
-the threshold fails its AnalysisRun, and the rollout aborts. On abort, the canary
-ReplicaSet scales back down and the stable ReplicaSet, which was never scaled to
-zero during the canary steps, keeps serving every request. There is no gap: stable
-was carrying its share of traffic the entire time, so aborting just returns all of
-it to stable.
+The whole point of the canary is that a bad version never fully rolls out. A canary
+whose success rate drops or whose latency climbs past the threshold fails its
+AnalysisRun, and the rollout aborts. On abort, the canary ReplicaSet scales back
+down and the stable ReplicaSet, which was never scaled to zero during the canary
+steps, keeps serving every request. There is no gap: stable was carrying its share
+of traffic the entire time, so aborting just returns all of it to stable.
+
+This is proven, not theoretical. A fault-injection knob (`api.failRate` in the dev
+values) was set above zero through a normal pull request, its canary pods returned
+500s, the analysis failed, and Argo Rollouts rolled the release back on its own
+while the stable pods served clean. The full capture is in
+`docs/proof/canary-auto-rollback.txt`. The knob is kept at zero in normal operation.
 
 Recovery is a git action, in keeping with the rest of the system. Revert the
 `deploy/<sha>` pull request so the values file points back at the last good tag, and
 ArgoCD reconciles the app back to it. For an immediate stop before the revert lands,
 `kubectl argo rollouts abort linkpulse-api -n linkpulse-dev` halts the in-flight
-rollout, and stable continues serving. The failed-canary auto-rollback is captured
-as proof once the analysis templates are live; a fault-injection knob
-(`api.failRate` in the dev values) exists to drive that demo and is kept at zero in
-normal operation.
+rollout, and stable continues serving.
 
 ## Prod promotion
 

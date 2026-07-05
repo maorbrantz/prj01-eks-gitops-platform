@@ -93,13 +93,12 @@ Forcing a sync if you do not want to wait for the poll:
 ## Incidents
 
 Canary aborted. A rollout that aborts leaves stable serving, so the app is up, but
-something judged the new version bad. Check, in order: the rollout status and
+the analysis judged the new version bad. Check, in order: the rollout status and
 message (`kubectl argo rollouts get rollout linkpulse-api -n linkpulse-dev`), the
-canary pod logs for the new image, and once the analysis layer is live, the
-AnalysisRun that failed (`kubectl -n linkpulse-dev get analysisrun`) and the
-Prometheus queries behind it (5xx ratio and p95 against the thresholds). If the new
-image is genuinely bad, revert the tag-bump pull request and let it roll back
-through git.
+canary pod logs for the new image, the AnalysisRun that failed
+(`kubectl -n linkpulse-dev get analysisrun`), and the Prometheus queries behind it
+(5xx ratio and p95 against the thresholds). If the new image is genuinely bad,
+revert the tag-bump pull request and let it roll back through git.
 
 Pods stuck Pending, Karpenter checklist. Work down this list:
 
