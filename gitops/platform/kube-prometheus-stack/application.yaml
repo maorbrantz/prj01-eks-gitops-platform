@@ -26,6 +26,24 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
+  # the grafana chart renders a fresh random admin password into its Secret on
+  # every manifest generation, and the grafana Deployment carries a checksum of
+  # that Secret. left alone these flap OutOfSync forever. ignoring the generated
+  # fields keeps the first applied password stable and the app Synced. retrieve
+  # the password with the command in values.yaml.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: kube-prometheus-stack-grafana
+      namespace: monitoring
+      jsonPointers:
+        - /data
+    - group: apps
+      kind: Deployment
+      name: kube-prometheus-stack-grafana
+      namespace: monitoring
+      jsonPointers:
+        - /spec/template/metadata/annotations/checksum~1secret
   syncPolicy:
     automated:
       prune: true
