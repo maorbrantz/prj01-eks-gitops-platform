@@ -14,7 +14,6 @@ aws:
   endpointUrl: ""
 
 api:
-  replicas: 2
   serviceAccountName: linkpulse-api
   baseUrl: http://linkpulse.prj1.maorbrantz.com
 
