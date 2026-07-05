@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  description: linkpulse application workloads
+  sourceRepos:
+    - https://github.com/maorbrantz/prj01-eks-gitops-platform
+    - https://github.com/maorbrantz/prj01-linkpulse-app
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: linkpulse-dev
+  # the chart only ships namespaced resources (deployments, services, service
+  # accounts, ingress), so no cluster scoped whitelist is needed.
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
