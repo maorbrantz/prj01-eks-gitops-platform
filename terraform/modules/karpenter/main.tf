@@ -28,6 +28,12 @@ module "karpenter" {
   # that feed it spot interruption and rebalance notices.
   enable_spot_termination = true
 
+  # A stable role name rather than a generated suffix. The EC2NodeClass in
+  # gitops references this role by name, so it has to survive destroy and
+  # rebuild cycles unchanged.
+  node_iam_role_use_name_prefix = false
+  node_iam_role_name            = "Karpenter-${var.cluster_name}"
+
   # The node role needs the SSM managed policy so nodes can register and be
   # managed. This is the standard set for Karpenter-launched nodes.
   node_iam_role_additional_policies = {

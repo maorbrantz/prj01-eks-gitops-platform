@@ -14,8 +14,7 @@ ARGO_HELM_REPO="https://argoproj.github.io/argo-helm"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VALUES_FILE="${REPO_ROOT}/gitops/platform/argocd/values.yaml"
-PROJECT_FILE="${REPO_ROOT}/gitops/bootstrap/project.yaml"
-ROOT_APP_FILE="${REPO_ROOT}/gitops/bootstrap/root.yaml"
+BOOTSTRAP_DIR="${REPO_ROOT}/gitops/bootstrap"
 
 # allow HELM_BIN override so a portable helm can be used without a system install
 HELM_BIN="${HELM_BIN:-helm}"
@@ -36,11 +35,8 @@ echo "==> installing/upgrading argocd chart ${ARGOCD_CHART_VERSION} into namespa
   --wait \
   --timeout 10m
 
-echo "==> applying platform AppProject"
-kubectl apply -f "${PROJECT_FILE}"
-
-echo "==> applying root Application (app of apps)"
-kubectl apply -f "${ROOT_APP_FILE}"
+echo "==> applying AppProjects and the root Application (everything in gitops/bootstrap)"
+kubectl apply -f "${BOOTSTRAP_DIR}"
 
 echo "==> done. watch progress with:"
 echo "    kubectl -n ${ARGOCD_NAMESPACE} get applications.argoproj.io -o wide"
