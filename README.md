@@ -13,6 +13,10 @@ Live at **https://linkpulse.prj1.maorbrantz.com**. Application code lives in [pr
 
 The cluster is `prj01-dev`, EKS 1.33, in `il-central-1`. It runs in a dedicated VPC across three availability zones with nodes in the private subnets. A small managed node group carries the system workloads (ArgoCD, the controllers, Prometheus); application pods land on nodes that Karpenter provisions on demand, spot when it can get it. Users reach the app through an internet-facing ALB with an ACM certificate.
 
+![prj01 architecture](docs/diagrams/prj01-architecture.drawio.png)
+
+The [draw.io source](docs/diagrams/prj01-architecture.drawio) is in the repo and the PNG has the diagram XML embedded, so both open in draw.io for editing. [docs/diagrams/prj01-architecture.md](docs/diagrams/prj01-architecture.md) walks the request and delivery flows. The same system as a mermaid sketch:
+
 ```mermaid
 flowchart TB
     User((Users)) -- HTTPS --> ALB[Internet-facing ALB<br/>ACM cert]
