@@ -127,26 +127,44 @@ near the end, check the token before assuming anything is actually broken.
 
 ## Teardown and rebuild
 
-Tear the cluster down at the end of a session:
+Tear the cluster down at the end of a session. Two resources are created by
+in-cluster controllers rather than terraform (the ALB by the load balancer
+controller, worker nodes by Karpenter), so remove those first or the VPC
+teardown will hang on their dangling network interfaces:
 
+    kubectl -n argocd patch application root --type merge -p '{"spec":{"syncPolicy":{"automated":null}}}'
+    kubectl -n argocd delete application karpenter-nodepools   # terminates karpenter nodes
+    kubectl -n argocd delete application linkpulse-dev         # removes the ingress, controller deletes the ALB
+    # wait until aws elbv2 describe-load-balancers shows the linkpulse ALB gone, then
     make down FORCE=1                 # terraform destroy of the dev env
 
-Like `make up`, `make down` needs `FORCE=1` so it is never accidental. This
-destroys the dev environment: the cluster, the VPC, the NAT gateway, the ALB, and
-the Karpenter nodes. Because it is all in git, rebuilding is `make up FORCE=1`
-followed by `make argocd`.
+The ECR repositories live in the dev stack and are destroyed with it, and
+terraform refuses to delete a repository that still holds images. Empty them
+first (`aws ecr batch-delete-image`) or accept the destroy failing once, emptying,
+and re-running. Disabling the root app's automated sync first stops ArgoCD from
+re-creating the two applications you just deleted.
+
+Like `make up`, `make down` needs `FORCE=1` so it is never accidental. Because
+everything is in git, rebuilding is `make up FORCE=1` followed by `make argocd`,
+then re-populating ECR by re-running the most recent `release` workflow run in
+the app repo (`gh run rerun <id>`) and merging its deploy PR if one opens.
+
+One known quirk on rebuild: EKS automatically creates an admin access entry for
+the identity that created the cluster, and the apply then fails with a 409
+(`ResourceInUseException`) trying to create the same entry. Import it and
+re-apply:
+
+    terraform import 'module.eks.module.eks.aws_eks_access_entry.this["cluster_creator"]' \
+      "prj01-dev:<sso admin role arn>"
 
 What survives a `make down`, because it belongs to the bootstrap stack or is
 referenced by data source, not owned by the dev env:
 
 - The Terraform state bucket (`prj01-tf-state-149536464688`) and lock table.
-- The ECR repositories and the images in them, so a rebuild does not have to
-  re-push.
 - The Route53 hosted zone `prj1.maorbrantz.com` and its GoDaddy delegation.
 - The GitHub OIDC provider and the CI roles.
 
 What it costs while down: effectively nothing. S3 and DynamoDB hold a few small
-objects, ECR holds a handful of images (a lifecycle policy keeps only the last ten
-per repo), and the hosted zone is a small fixed monthly charge. The expensive parts
+objects and the hosted zone is a small fixed monthly charge. The expensive parts
 (the control plane, the nodes, the NAT gateway, the ALB) are all gone. See
 `docs/cost-analysis.md` for the numbers.
