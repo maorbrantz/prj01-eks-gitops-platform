@@ -6,7 +6,7 @@ spec:
   amiFamily: AL2023
   amiSelectorTerms:
     - alias: al2023@latest
-  role: Karpenter-prj01-dev-20260705140812511400000005
+  role: Karpenter-prj01-dev
   subnetSelectorTerms:
     - tags:
         karpenter.sh/discovery: prj01-dev
