@@ -7,6 +7,8 @@ A production-shaped Kubernetes platform on AWS, driven end to end by GitOps. Ter
 
 Live at **https://linkpulse.prj1.maorbrantz.com**. Application code lives in [prj01-linkpulse-app](https://github.com/maorbrantz/prj01-linkpulse-app).
 
+![LinkPulse live, clicks landing through SQS and the worker into DynamoDB](docs/proof/img/app-live-pulse.png)
+
 ## Architecture
 
 The cluster is `prj01-dev`, EKS 1.33, in `il-central-1`. It runs in a dedicated VPC across three availability zones with nodes in the private subnets. A small managed node group carries the system workloads (ArgoCD, the controllers, Prometheus); application pods land on nodes that Karpenter provisions on demand, spot when it can get it. Users reach the app through an internet-facing ALB with an ACM certificate.
@@ -89,7 +91,11 @@ The api runs as an Argo Rollout with a replica-ratio canary: 20 percent, analysi
 
 ## Proof it works
 
-Each transcript in `docs/proof/` is a captured run from a real `make up` session. `docs/proof/README.md` indexes them with what each one proves.
+A canary mid-flight, captured in ArgoCD while a ui change shipped through the pipeline: the new ReplicaSet next to stable, an AnalysisRun querying Prometheus, and the sync annotated with the deploy PR merge.
+
+![ArgoCD during a canary rollout](docs/proof/img/argocd-canary-tree.png)
+
+Each transcript in `docs/proof/` is a captured run from a real `make up` session. [docs/proof/README.md](docs/proof/README.md) indexes them and holds the full screenshot set (the analysis verdict, the golden signals dashboard riding a load test, the app live).
 
 | Artifact | What it proves |
 |---|---|

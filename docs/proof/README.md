@@ -12,11 +12,32 @@ Captured runs from real `make up` sessions, one file per behavior the platform c
 
 The GitOps deploy loop, ArgoCD self-heal, and Kyverno blocking a bad pod are visible directly in the pull request history rather than as a transcript here: [#4](https://github.com/maorbrantz/prj01-eks-gitops-platform/pull/4) and [#15](https://github.com/maorbrantz/prj01-eks-gitops-platform/pull/15) stand up ArgoCD and the app through GitOps.
 
-## Screenshots to add
+## Screenshots
 
-A few images make the story land faster for a first-time reader. To capture during a `make up` session and drop into this folder:
+Captured live during a rebuild session, while the web ui redesign shipped through the pipeline.
 
-- The ArgoCD application tree, all Applications green.
-- The Grafana golden-signals dashboard under load, with RPS, p95, and error rate populated.
-- The app in a browser at https://linkpulse.prj1.maorbrantz.com, address bar showing the lock.
-- A canary mid-rollout in the Argo Rollouts dashboard, showing the weight step and the analysis run.
+### A canary mid-rollout in ArgoCD
+
+The app is Progressing while the new ReplicaSet runs next to stable and an AnalysisRun judges it against Prometheus. The sync comment is the merge of the deploy PR. No kubectl anywhere.
+
+![ArgoCD tree during a canary](img/argocd-canary-tree.png)
+
+### The analysis verdict
+
+Both metrics evaluated against live Prometheus data, then the rollout continued on its own.
+
+![AnalysisRun events](img/canary-analysis-events.png)
+
+![AnalysisRun while running](img/canary-analysisrun-live.png)
+
+### The app, live
+
+https://linkpulse.prj1.maorbrantz.com with the pulse view on live refresh. Every click flows through SQS and the worker into DynamoDB before it lands on this chart.
+
+![LinkPulse UI](img/app-live-pulse.png)
+
+### Golden signals under load
+
+The load generator stopping and restarting is visible in the request rate, the HPA follows it from 10 pods down to 4 and back, and the worker processing rate wakes up the moment clicks start flowing.
+
+![Grafana golden signals](img/grafana-golden-signals.png)
