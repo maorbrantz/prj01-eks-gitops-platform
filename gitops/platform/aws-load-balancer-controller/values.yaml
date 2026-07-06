@@ -5,7 +5,9 @@
 
 clusterName: prj01-dev
 region: il-central-1
-vpcId: vpc-05535ab3b3fcfe843
+# no vpcId here on purpose: the controller discovers the vpc from the node it
+# runs on. pinning the generated vpc id broke the first rebuild when the vpc
+# was recreated with a new id.
 
 serviceAccount:
   create: true
