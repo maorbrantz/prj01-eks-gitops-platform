@@ -33,4 +33,4 @@ ingress:
   className: alb
   host: linkpulse.prj1.maorbrantz.com
   groupName: linkpulse-dev
-  certificateArn: arn:aws:acm:il-central-1:149536464688:certificate/8378a749-2529-4481-87af-a2fb580f9ddf
+  certificateArn: arn:aws:acm:il-central-1:149536464688:certificate/1c31b453-d8f8-48ef-9362-4786b858a336
